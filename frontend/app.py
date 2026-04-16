@@ -147,6 +147,7 @@ class App(ctk.CTk):
         self._build_header()
         self._build_body()
         self._build_statusbar()
+        self._check_date_message()
 
     def _build_header(self):
         header = ctk.CTkFrame(self, fg_color=HEADER_BG, corner_radius=0, height=90)
@@ -156,12 +157,14 @@ class App(ctk.CTk):
         inner = ctk.CTkFrame(header, fg_color='transparent')
         inner.pack(expand=True, fill='both', padx=32)
 
+        self._icon_click_times = []
         icon_canvas = tk.Canvas(inner, width=50, height=50, bg=HEADER_BG,
                                 highlightthickness=0, bd=0)
         icon_canvas.pack(side='left', pady=20, padx=(0, 16))
         if ICON_HEADER_PATH.exists():
             self._header_icon = tk.PhotoImage(file=str(ICON_HEADER_PATH)).subsample(5)
             icon_canvas.create_image(25, 25, image=self._header_icon, anchor='center')
+        icon_canvas.bind('<Button-1>', self._on_icon_click)
 
         text_frame = ctk.CTkFrame(inner, fg_color='transparent')
         text_frame.pack(side='left', pady=20)
@@ -428,3 +431,106 @@ class App(ctk.CTk):
             self.run_btn.configure(state='disabled', fg_color='#A0B8D8', text='처리 중…')
         else:
             self.run_btn.configure(state='normal', fg_color=ACCENT, text='▶  실행')
+
+    # ================================================================
+    # 이스터에그
+    # ================================================================
+
+    def _on_icon_click(self, event=None):
+        now = datetime.now().timestamp()
+        self._icon_click_times = [t for t in self._icon_click_times if now - t < 1.5]
+        self._icon_click_times.append(now)
+        if len(self._icon_click_times) >= 5:
+            self._icon_click_times = []
+            self._show_easter_egg()
+
+    def _show_easter_egg(self):
+        win = ctk.CTkToplevel(self)
+        win.title('정보')
+        win.geometry('380x560')
+        win.resizable(False, False)
+        win.grab_set()
+        win.configure(fg_color=HEADER_BG)
+
+        frame = ctk.CTkFrame(win, fg_color='transparent')
+        frame.pack(expand=True, fill='both', padx=30, pady=16)
+
+        ctk.CTkLabel(frame, text='eHojo BudgetChecker',
+                     font=(FONT_KO, 18, 'bold'),
+                     text_color='#D8E4F4').pack()
+        ctk.CTkLabel(frame, text='v0.1.0',
+                     font=(FONT_MONO, 13),
+                     text_color='#7A9AC0').pack(pady=(2, 8))
+
+        ctk.CTkFrame(frame, fg_color='#3A5070', height=1, corner_radius=0).pack(fill='x')
+
+        ctk.CTkLabel(frame, text='"예산은 거짓말을 하지 않는다"',
+                     font=(FONT_KO, 13, 'italic'),
+                     text_color='#A8C4E0').pack(pady=(8, 2))
+        ctk.CTkLabel(frame, text='"하지만 엑셀은 거짓말을 한다"',
+                     font=(FONT_KO, 13, 'italic'),
+                     text_color='#A8C4E0').pack(pady=(0, 8))
+
+        ctk.CTkFrame(frame, fg_color='#3A5070', height=1, corner_radius=0).pack(fill='x')
+
+        ctk.CTkLabel(frame, text='Made with ☕ and 야근',
+                     font=(FONT_KO, 13),
+                     text_color='#8AA4C8').pack(pady=(8, 2))
+        ctk.CTkLabel(frame, text='Powered by 권혁수 팀장의 내리갈굼',
+                     font=(FONT_KO, 13),
+                     text_color='#8AA4C8').pack(pady=(0, 8))
+
+        ctk.CTkFrame(frame, fg_color='#3A5070', height=1, corner_radius=0).pack(fill='x')
+
+        for quote in ('"내가 왜? 널 시키면 되는데"',
+                      '"너는 다 할 수 있잖아"',
+                      '"다 너 능력 키워주려고 하는 거야"'):
+            ctk.CTkLabel(frame, text=quote,
+                         font=(FONT_KO, 12, 'italic'),
+                         text_color='#7A9AC0').pack(pady=1)
+        ctk.CTkLabel(frame, text='— 권혁수 팀장',
+                     font=(FONT_KO, 12),
+                     text_color='#607A9C').pack(pady=(2, 8))
+
+        ctk.CTkFrame(frame, fg_color='#3A5070', height=1, corner_radius=0).pack(fill='x')
+
+        thanks = ctk.CTkFrame(frame, fg_color='transparent')
+        thanks.pack(pady=(8, 0))
+        ctk.CTkLabel(thanks, text='Special Thanks',
+                     font=(FONT_KO, 12, 'bold'),
+                     text_color='#8AA4C8').pack()
+        for item in ('☕ 자판기 아메리카노', '🌙 야근수당 (없음)', '🤖 Claude AI (진짜 일한 놈)'):
+            ctk.CTkLabel(thanks, text=item,
+                         font=(FONT_KO, 12),
+                         text_color='#607A9C').pack()
+
+        ctk.CTkLabel(frame, text='© 2026 갈굼당한 개발자',
+                     font=(FONT_KO, 11),
+                     text_color='#4A6080').pack(pady=(8, 0))
+
+        ctk.CTkButton(frame, text='닫기',
+                      font=(FONT_KO, 13, 'bold'),
+                      fg_color=ACCENT,
+                      hover_color=ACCENT_DK,
+                      text_color='white',
+                      corner_radius=6,
+                      height=40,
+                      width=100,
+                      command=win.destroy).pack(pady=(10, 0))
+
+    def _check_date_message(self):
+        now = datetime.now()
+        md = (now.month, now.day)
+        date_msgs = {
+            (1, 1):   '새해 복 많이 받으세요 🎊',
+            (3, 1):   '대한독립 만세 🇰🇷',
+            (5, 5):   '어린이날인데 왜 일하고 계세요?',
+            (10, 9):  '한글날입니다. 보고서 맞춤법 확인하셨나요?',
+            (12, 25): '메리 크리스마스 🎄',
+        }
+        msg = date_msgs.get(md)
+        if msg is None and now.weekday() == 4 and now.hour >= 17:
+            msg = '불금입니다. 이걸 보고 있다는 건… 퇴근 못하시는 거죠?'
+        if msg:
+            self.status_var.set(msg)
+            self.after(5000, lambda: self.status_var.set('대기 중'))
