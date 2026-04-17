@@ -29,7 +29,12 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+import xlrd
+from PIL import Image
+
 from budget_checker.checker import BudgetChecker
+from budget_checker.config import Constant
+from budget_checker.excel_reader import validate_columns
 
 # 아이콘 파일 경로
 # PyInstaller로 빌드된 exe에서는 sys._MEIPASS 임시 폴더에서 assets를 찾음
@@ -43,6 +48,7 @@ else:
 ICON_PATH        = _BASE_DIR / 'assets' / 'icon.png'         # 창 아이콘 (검은색, macOS용)
 ICON_ICO_PATH    = _BASE_DIR / 'assets' / 'icon.ico'         # 창 아이콘 (Windows용 ico)
 ICON_HEADER_PATH = _BASE_DIR / 'assets' / 'icon_header.png'  # 헤더 아이콘 (#D8E4F4)
+GUIDE_IMG_PATH   = _BASE_DIR / 'assets' / 'images' / 'Final_Combined_Budget.png'  # 안내 이미지
 
 # ========== 애플리케이션 테마 설정 ==========
 # 라이트 모드 사용 (밝은 화면)
@@ -120,7 +126,7 @@ class App(ctk.CTk):
         """
         super().__init__()
         self.title('eHojo BudgetChecker')
-        self.geometry('800x700')
+        self.geometry('800x720')
         self.resizable(False, False)
         self.configure(fg_color=BG)
 
@@ -378,6 +384,32 @@ class App(ctk.CTk):
             messagebox.showwarning('입력 오류', '출력 폴더를 선택해주세요.')
             return
 
+        # 컬럼 검증
+        try:
+            xl_b = xlrd.open_workbook(budget_path)
+            st_b = xl_b.sheets()[0]
+        except Exception:
+            messagebox.showerror('파일 오류',
+                                 '예산서 파일을 열 수 없습니다.\n'
+                                 '올바른 Excel 파일(.xlsx)인지 확인해주세요.')
+            return
+
+        try:
+            xl_e = xlrd.open_workbook(exec_path)
+            st_e = xl_e.sheets()[0]
+        except Exception:
+            messagebox.showerror('파일 오류',
+                                 '지출집행내역 파일을 열 수 없습니다.\n'
+                                 '올바른 Excel 파일(.xlsx)인지 확인해주세요.')
+            return
+
+        budget_missing = validate_columns(st_b, Constant.BUDGET_COLUMNS)
+        exec_missing = validate_columns(st_e, Constant.EXECUTION_COLUMNS)
+
+        if budget_missing or exec_missing:
+            self._show_file_guide(budget_missing, exec_missing)
+            return
+
         filename    = self._make_filename()
         output_path = str(Path(output_dir) / filename)
 
@@ -420,6 +452,101 @@ class App(ctk.CTk):
         self.status_var.set('대기 중')
 
     # ================================================================
+    # 파일 검증 안내 다이얼로그
+    # ================================================================
+
+    def _show_file_guide(self, budget_missing, exec_missing):
+        win = ctk.CTkToplevel(self)
+        win.title('파일 확인 필요')
+        win.resizable(False, False)
+        win.grab_set()
+        win.configure(fg_color=SURFACE)
+
+        # 다이얼로그 아이콘 설정
+        if platform.system() == 'Windows' and ICON_ICO_PATH.exists():
+            win.after(200, lambda: win.iconbitmap(str(ICON_ICO_PATH)))
+        elif ICON_PATH.exists():
+            self._guide_icon = tk.PhotoImage(file=str(ICON_PATH))
+            win.iconphoto(True, self._guide_icon)
+
+        # 헤더
+        header = ctk.CTkFrame(win, fg_color=HEADER_BG, corner_radius=0, height=60)
+        header.pack(fill='x')
+        header.pack_propagate(False)
+        ctk.CTkLabel(header, text='파일을 확인해주세요',
+                     font=(FONT_KO, 18, 'bold'),
+                     text_color='#D8E4F4').pack(expand=True)
+
+        # 스크롤 가능 본문
+        scroll = ctk.CTkScrollableFrame(win, fg_color='transparent')
+        scroll.pack(fill='both', expand=True, padx=24, pady=16)
+
+        ctk.CTkLabel(scroll,
+                     text='선택한 파일에 필요한 컬럼이 없습니다.\n'
+                          'e호조에서 아래 방법으로 다시 다운로드해주세요.',
+                     font=(FONT_KO, 13),
+                     text_color=TEXT_SEC,
+                     justify='left').pack(anchor='w', pady=(0, 12))
+
+        # 예산서 안내
+        if budget_missing:
+            self._add_guide_section(scroll, '합본예산서 다운로드', Constant.BUDGET_GUIDE)
+            # 안내 이미지
+            if GUIDE_IMG_PATH.exists():
+                pil_img = Image.open(str(GUIDE_IMG_PATH))
+                img_w, img_h = pil_img.size
+                display_w = 440
+                display_h = int(img_h * display_w / img_w)
+                guide_img = ctk.CTkImage(light_image=pil_img,
+                                         size=(display_w, display_h))
+                self._guide_img_ref = guide_img
+                ctk.CTkLabel(scroll, image=guide_img, text='').pack(pady=(0, 10))
+
+        # 집행내역 안내
+        if exec_missing:
+            self._add_guide_section(scroll, '지출집행현황(21126) 다운로드', Constant.EXECUTION_GUIDE)
+
+        # 닫기 버튼
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=24, pady=(0, 16))
+        ctk.CTkButton(btn_frame, text='확인',
+                      font=(FONT_KO, 14, 'bold'),
+                      fg_color=ACCENT,
+                      hover_color=ACCENT_DK,
+                      text_color='white',
+                      corner_radius=6,
+                      height=40,
+                      width=100,
+                      command=win.destroy).pack()
+
+        # 창 크기 설정
+        height = 280
+        if budget_missing:
+            height += 200
+            if GUIDE_IMG_PATH.exists():
+                height += 300
+        if exec_missing:
+            height += 140
+        win.geometry(f'520x{min(height, 750)}')
+
+    def _add_guide_section(self, parent, title, guide_text):
+        frame = ctk.CTkFrame(parent, fg_color=ACCENT_LT, corner_radius=8)
+        frame.pack(fill='x', pady=(0, 10))
+
+        inner = ctk.CTkFrame(frame, fg_color='transparent')
+        inner.pack(fill='x', padx=16, pady=12)
+
+        ctk.CTkLabel(inner, text=title,
+                     font=(FONT_KO, 14, 'bold'),
+                     text_color=ACCENT).pack(anchor='w')
+
+        ctk.CTkLabel(inner, text=guide_text,
+                     font=(FONT_KO, 12),
+                     text_color=TEXT,
+                     justify='left',
+                     anchor='w').pack(anchor='w', pady=(8, 0))
+
+    # ================================================================
     # 유틸
     # ================================================================
 
@@ -447,10 +574,17 @@ class App(ctk.CTk):
     def _show_easter_egg(self):
         win = ctk.CTkToplevel(self)
         win.title('정보')
-        win.geometry('380x560')
+        win.geometry('380x600')
         win.resizable(False, False)
         win.grab_set()
         win.configure(fg_color=HEADER_BG)
+
+        # 창 아이콘 설정
+        if platform.system() == 'Windows' and ICON_ICO_PATH.exists():
+            win.after(200, lambda: win.iconbitmap(str(ICON_ICO_PATH)))
+        elif ICON_PATH.exists():
+            self._egg_icon = tk.PhotoImage(file=str(ICON_PATH))
+            win.iconphoto(True, self._egg_icon)
 
         frame = ctk.CTkFrame(win, fg_color='transparent')
         frame.pack(expand=True, fill='both', padx=30, pady=16)

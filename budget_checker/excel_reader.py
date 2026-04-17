@@ -284,3 +284,18 @@ def get_rows_sorted(sheet, column_names: tuple, match_values: tuple, target_colu
 
     # 정렬된 리스트를 튜플로 변환하여 반환
     return tuple(result)
+
+
+def validate_columns(sheet, required_columns: tuple) -> tuple:
+    """
+    시트의 헤더(0행)에 필요한 컬럼이 모두 있는지 검증합니다.
+
+    [매개변수]
+    sheet            : xlrd 시트 객체
+    required_columns : 필수 컬럼 이름 튜플
+
+    [반환값]
+    누락된 컬럼 이름의 튜플. 비어있으면 검증 통과.
+    """
+    headers = [sheet.cell_value(0, c) for c in range(sheet.ncols)]
+    return tuple(col for col in required_columns if col not in headers)
