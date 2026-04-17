@@ -16,8 +16,6 @@ eHojo BudgetChecker - 사용자 인터페이스(GUI) 모듈
 4. 실행 버튼 클릭
 5. 결과 확인 (완료 메시지)
 
-작성자: eHojo BudgetChecker Team
-버전: 0.1.0
 """
 
 import platform
@@ -30,7 +28,6 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 import xlrd
-from PIL import Image
 
 from budget_checker.checker import BudgetChecker
 from budget_checker.config import Constant
@@ -493,14 +490,12 @@ class App(ctk.CTk):
             self._add_guide_section(scroll, '합본예산서 다운로드', Constant.BUDGET_GUIDE)
             # 안내 이미지
             if GUIDE_IMG_PATH.exists():
-                pil_img = Image.open(str(GUIDE_IMG_PATH))
-                img_w, img_h = pil_img.size
-                display_w = 440
-                display_h = int(img_h * display_w / img_w)
-                guide_img = ctk.CTkImage(light_image=pil_img,
-                                         size=(display_w, display_h))
-                self._guide_img_ref = guide_img
-                ctk.CTkLabel(scroll, image=guide_img, text='').pack(pady=(0, 10))
+                photo = tk.PhotoImage(file=str(GUIDE_IMG_PATH))
+                factor = max(1, photo.width() // 440)
+                if factor > 1:
+                    photo = photo.subsample(factor, factor)
+                self._guide_img_ref = photo
+                tk.Label(scroll, image=photo, bg=SURFACE).pack(pady=(0, 10))
 
         # 집행내역 안내
         if exec_missing:
