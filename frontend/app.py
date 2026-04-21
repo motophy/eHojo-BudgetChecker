@@ -474,11 +474,11 @@ class App(ctk.CTk):
                      font=(FONT_KO, 18, 'bold'),
                      text_color='#D8E4F4').pack(expand=True)
 
-        # 스크롤 가능 본문
-        scroll = ctk.CTkScrollableFrame(win, fg_color='transparent')
-        scroll.pack(fill='both', expand=True, padx=24, pady=16)
+        # 본문
+        body = ctk.CTkFrame(win, fg_color='transparent')
+        body.pack(fill='both', expand=True, padx=24, pady=16)
 
-        ctk.CTkLabel(scroll,
+        ctk.CTkLabel(body,
                      text='선택한 파일에 필요한 컬럼이 없습니다.\n'
                           'e호조에서 아래 방법으로 다시 다운로드해주세요.',
                      font=(FONT_KO, 13),
@@ -487,7 +487,7 @@ class App(ctk.CTk):
 
         # 예산서 안내
         if budget_missing:
-            self._add_guide_section(scroll, '합본예산서 다운로드', Constant.BUDGET_GUIDE)
+            self._add_guide_section(body, '합본예산서 다운로드', Constant.BUDGET_GUIDE)
             # 안내 이미지
             if GUIDE_IMG_PATH.exists():
                 photo = tk.PhotoImage(file=str(GUIDE_IMG_PATH))
@@ -495,11 +495,11 @@ class App(ctk.CTk):
                 if factor > 1:
                     photo = photo.subsample(factor, factor)
                 self._guide_img_ref = photo
-                tk.Label(scroll, image=photo, bg=SURFACE).pack(pady=(0, 10))
+                tk.Label(body, image=photo, bg=SURFACE).pack(pady=(0, 10))
 
         # 집행내역 안내
         if exec_missing:
-            self._add_guide_section(scroll, '지출집행현황(21126) 다운로드', Constant.EXECUTION_GUIDE)
+            self._add_guide_section(body, '지출집행현황(21126) 다운로드', Constant.EXECUTION_GUIDE)
 
         # 닫기 버튼
         btn_frame = ctk.CTkFrame(win, fg_color='transparent')
@@ -514,15 +514,10 @@ class App(ctk.CTk):
                       width=100,
                       command=win.destroy).pack()
 
-        # 창 크기 설정
-        height = 280
-        if budget_missing:
-            height += 200
-            if GUIDE_IMG_PATH.exists():
-                height += 300
-        if exec_missing:
-            height += 140
-        win.geometry(f'520x{min(height, 750)}')
+        # 내용에 맞춰 창 크기 자동 설정
+        win.update_idletasks()
+        req_h = min(win.winfo_reqheight(), 750)
+        win.geometry(f'520x{req_h}')
 
     def _add_guide_section(self, parent, title, guide_text):
         frame = ctk.CTkFrame(parent, fg_color=ACCENT_LT, corner_radius=8)
